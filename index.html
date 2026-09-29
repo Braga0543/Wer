@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Аптека рядом</title>
+<style>
+  :root {
+    --accent: #0d6e4f;
+    --accent-dark: #094e38;
+    --bg: #ffffff;
+    --text: #1c1c1c;
+    --muted: #6b6b6b;
+    --border: #dfe3e0;
+    --danger: #b3261e;
+    --warn-bg: #fff4e5;
+    --warn-text: #8a5300;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 17px;
+    line-height: 1.5;
+  }
+  .app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+  header.top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+  }
+  header.top h1 { font-size: 20px; margin: 0; color: var(--accent-dark); }
+  header.top .user-email { font-size: 14px; color: var(--muted); }
+  main { flex: 1; padding: 20px; }
+  h2 { font-size: 22px; margin-top: 0; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  input, button, select {
+    font-size: 17px;
+    font-family: inherit;
+  }
+  input[type=text], input[type=email], input[type=password], input[type=number] {
+    width: 100%;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 10px;
+    padding: 13px 18px;
+    font-weight: 600;
+  }
+  button.primary { background: var(--accent); color: #fff; width: 100%; }
+  button.primary:hover { background: var(--accent-dark); }
+  button.secondary { background: #eef3f1; color: var(--accent-dark); width: 100%; }
+  button.link { background: none; color: var(--accent); padding: 8px 0; text-decoration: underline; }
+  button.danger { background: #fbeceb; color: var(--danger); }
+  button.small { padding: 8px 12px; font-size: 15px; }
+
+  .tabs { display: flex; margin-bottom: 20px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+  .tabs button { flex: 1; background: #f4f6f5; color: var(--muted); border-radius: 0; }
+  .tabs button.active { background: var(--accent); color: #fff; }
+
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .card h3 { margin: 0 0 6px 0; font-size: 18px; }
+  .card .meta { color: var(--muted); font-size: 15px; margin: 2px 0; }
+  .card .price { font-weight: 700; color: var(--accent-dark); font-size: 18px; }
+
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+  .badge.in-stock { background: #e5f4ec; color: var(--accent-dark); }
+  .badge.out-stock { background: #fbeceb; color: var(--danger); }
+
+  .progress-bar { height: 10px; border-radius: 6px; background: #eee; overflow: hidden; margin: 8px 0; }
+  .progress-bar > div { height: 100%; background: var(--accent); }
+  .progress-bar.low > div { background: var(--danger); }
+
+  .refill-warning {
+    background: var(--warn-bg); color: var(--warn-text);
+    padding: 8px 12px; border-radius: 8px; font-size: 15px; margin: 8px 0;
+    font-weight: 600;
+  }
+
+  .error-msg { color: var(--danger); font-size: 15px; margin: -6px 0 12px 0; min-height: 18px; }
+  .empty-msg { color: var(--muted); text-align: center; padding: 30px 0; }
+
+  nav.bottom {
+    display: flex; border-top: 1px solid var(--border);
+    position: sticky; bottom: 0; background: #fff;
+  }
+  nav.bottom button {
+    flex: 1; background: none; border-radius: 0; color: var(--muted);
+    padding: 12px 4px; font-size: 14px; font-weight: 500;
+  }
+  nav.bottom button.active { color: var(--accent-dark); font-weight: 700; }
+
+  #map { height: 260px; border-radius: 12px; margin-bottom: 16px; }
+  .back-btn { background: none; color: var(--accent-dark); padding: 4px 0 16px 0; font-weight: 600; }
+  .toast {
+    position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%);
+    background: #222; color: #fff; padding: 10px 18px; border-radius: 10px;
+    font-size: 15px; z-index: 999; max-width: 90%; text-align: center;
+  }
+  .analog-item { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .analog-item:last-child { border-bottom: none; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top" id="topHeader" style="display:none;">
+    <h1>Аптека рядом</h1>
+    <div style="text-align:right;">
+      <div class="user-email" id="userEmail"></div>
+      <button class="link" id="logoutBtn" style="padding:0;font-size:13px;">Выйти</button>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- Экран: вход/регистрация -->
+    <section class="screen" id="screen-auth">
+      <h2>Вход в «Аптека рядом»</h2>
+      <div class="tabs">
+        <button id="tabLogin" class="active">Вход</button>
+        <button id="tabRegister">Регистрация</button>
+      </div>
+
+      <form id="loginForm">
+        <input type="email" id="loginEmail" placeholder="Email" required>
+        <input type="password" id="loginPassword" placeholder="Пароль" required>
+        <div class="error-msg" id="loginError"></div>
+        <button type="submit" class="primary">Войти</button>
+      </form>
+
+      <form id="registerForm" style="display:none;">
+        <input type="email" id="regEmail" placeholder="Email" required>
+        <input type="password" id="regPassword" placeholder="Пароль (мин. 6 символов)" required>
+        <div class="error-msg" id="regError"></div>
+        <button type="submit" class="primary">Зарегистрироваться</button>
+      </form>
+    </section>
+
+    <!-- Экран: главная -->
+    <section class="screen" id="screen-home">
+      <h2>Найти лекарство</h2>
+      <form id="searchForm">
+        <input type="text" id="searchInput" placeholder="Например: метформин">
+        <button type="submit" class="primary">Искать</button>
+      </form>
+
+      <h2 style="margin-top:28px;">Мои препараты</h2>
+      <div id="homeMedsList"></div>
+      <button class="secondary" id="goMyMedsBtn" style="margin-top:8px;">Открыть все мои препараты</button>
+    </section>
+
+    <!-- Экран: результаты поиска -->
+    <section class="screen" id="screen-results">
+      <button class="back-btn" data-back="screen-home">← Назад</button>
+      <h2>Результаты поиска</h2>
+      <div id="resultsList"></div>
+    </section>
+
+    <!-- Экран: детали лекарства -->
+    <section class="screen" id="screen-detail">
+      <button class="back-btn" data-back="screen-results">← Назад</button>
+      <h2 id="detailName"></h2>
+      <p class="meta" id="detailMeta"></p>
+      <p class="price" id="detailPrice"></p>
+
+      <div class="card">
+        <h3>Добавить в мои препараты</h3>
+        <form id="addMedForm">
+          <label>Раз в день:</label>
+          <input type="number" id="dosesPerDay" min="1" value="1" required>
+          <label>Таблеток в упаковке:</label>
+          <input type="number" id="pillsPerPack" min="1" value="30" required>
+          <button type="submit" class="primary">Добавить</button>
+        </form>
+      </div>
+
+      <button class="secondary" id="findPharmaciesBtn">Найти в аптеках</button>
+
+      <h3 style="margin-top:24px;">Аналоги (то же вещество)</h3>
+      <div id="analogsList"></div>
+    </section>
+
+    <!-- Экран: карта аптек -->
+    <section class="screen" id="screen-map">
+      <button class="back-btn" data-back="screen-detail">← Назад</button>
+      <h2>Аптеки поблизости</h2>
+      <div id="map"></div>
+      <div id="pharmaciesList"></div>
+    </section>
+
+    <!-- Экран: мои препараты -->
+    <section class="screen" id="screen-mymeds">
+      <button class="back-btn" data-back="screen-home">← Назад</button>
+      <h2>Мои препараты</h2>
+      <div id="myMedsFull"></div>
+      <button class="secondary" id="goStatsBtn" style="margin-top:16px;">Статистика дефицита</button>
+    </section>
+
+    <!-- Экран: статистика дефицита -->
+    <section class="screen" id="screen-stats">
+      <button class="back-btn" data-back="screen-mymeds">← Назад</button>
+      <h2>Топ-5 дефицита за 30 дней</h2>
+      <div id="statsList"></div>
+    </section>
+
+  </main>
+
+  <nav class="bottom" id="bottomNav" style="display:none;">
+    <button data-nav="screen-home">Главная</button>
+    <button data-nav="screen-mymeds">Мои препараты</button>
+    <button data-nav="screen-stats">Дефицит</button>
+  </nav>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+
+<script>
+/* ============================= Состояние приложения ============================= */
+let currentMedicine = null;   // детали текущего открытого лекарства
+let currentUserLat = null;
+let currentUserLng = null;
+let leafletMap = null;
+
+/* ============================= Универсальный вызов API ============================= */
+async function api(path, options = {}) {
+  const token = localStorage.getItem('token');
+  const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+
+  let response;
+  try {
+    response = await fetch(path, Object.assign({}, options, { headers }));
+  } catch (err) {
+    throw new Error('Не удалось связаться с сервером. Проверьте подключение.');
+  }
+
+  if (response.status === 401) {
+    localStorage.removeItem('token');
+    showScreen('screen-auth');
+    throw new Error('Сессия истекла, войдите снова.');
+  }
+
+  let data = null;
+  try { data = await response.json(); } catch (e) { /* пустой ответ */ }
+
+  if (!response.ok) {
+    const message = (data && data.detail) ? data.detail : 'Произошла ошибка. Попробуйте ещё раз.';
+    throw new Error(typeof message === 'string' ? message : 'Произошла ошибка.');
+  }
+  return data;
+}
+
+/* ============================= Вспомогательные функции UI ============================= */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('nav.bottom button').forEach(b => {
+    b.classList.toggle('active', b.dataset.nav === id);
+  });
+}
+
+function showToast(text) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = text;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+function clearChildren(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+
+function setText(el, text) { el.textContent = text; }
+
+/* ============================= Инициализация ============================= */
+window.addEventListener('DOMContentLoaded', async () => {
+  document.querySelectorAll('[data-back]').forEach(btn => {
+    btn.addEventListener('click', () => showScreen(btn.dataset.back));
+  });
+  document.querySelectorAll('nav.bottom button').forEach(btn => {
+    btn.addEventListener('click', () => onNav(btn.dataset.nav));
+  });
+
+  setupAuthForms();
+  document.getElementById('logoutBtn').addEventListener('click', doLogout);
+  document.getElementById('searchForm').addEventListener('submit', onSearchSubmit);
+  document.getElementById('goMyMedsBtn').addEventListener('click', () => onNav('screen-mymeds'));
+  document.getElementById('goStatsBtn').addEventListener('click', () => onNav('screen-stats'));
+  document.getElementById('addMedForm').addEventListener('submit', onAddMedSubmit);
+  document.getElementById('findPharmaciesBtn').addEventListener('click', onFindPharmacies);
+
+  const token = localStorage.getItem('token');
+  if (token) {
+    try {
+      const me = await api('/me');
+      onAuthenticated(me.email);
+      return;
+    } catch (e) {
+      localStorage.removeItem('token');
+    }
+  }
+  showScreen('screen-auth');
+});
+
+function onAuthenticated(email) {
+  document.getElementById('topHeader').style.display = 'flex';
+  document.getElementById('bottomNav').style.display = 'flex';
+  setText(document.getElementById('userEmail'), email);
+  showScreen('screen-home');
+  loadHomeMeds();
+}
+
+function onNav(screenId) {
+  showScreen(screenId);
+  if (screenId === 'screen-home') loadHomeMeds();
+  if (screenId === 'screen-mymeds') loadMyMedsFull();
+  if (screenId === 'screen-stats') loadStats();
+}
+
+/* ============================= Авторизация ============================= */
+function setupAuthForms() {
+  const tabLogin = document.getElementById('tabLogin');
+  const tabRegister = document.getElementById('tabRegister');
+  const loginForm = document.getElementById('loginForm');
+  const registerForm = document.getElementById('registerForm');
+
+  tabLogin.addEventListener('click', () => {
+    tabLogin.classList.add('active'); tabRegister.classList.remove('active');
+    loginForm.style.display = 'block'; registerForm.style.display = 'none';
+  });
+  tabRegister.addEventListener('click', () => {
+    tabRegister.classList.add('active'); tabLogin.classList.remove('active');
+    registerForm.style.display = 'block'; loginForm.style.display = 'none';
+  });
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('loginError');
+    setText(errEl, '');
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    try {
+      const res = await api('/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+      localStorage.setItem('token', res.token);
+      onAuthenticated(res.email);
+    } catch (err) { setText(errEl, err.message); }
+  });
+
+  registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('regError');
+    setText(errEl, '');
+    const email = document.getElementById('regEmail').value.trim();
+    const password = document.getElementById('regPassword').value;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setText(errEl, 'Некорректный email'); return; }
+    if (password.length < 6) { setText(errEl, 'Пароль должен быть не короче 6 символов'); return; }
+    try {
+      const res = await api('/register', { method: 'POST', body: JSON.stringify({ email, password }) });
+      localStorage.setItem('token', res.token);
+      onAuthenticated(res.email);
+    } catch (err) { setText(errEl, err.message); }
+  });
+}
+
+async function doLogout() {
+  try { await api('/logout', { method: 'POST' }); } catch (e) { /* игнорируем */ }
+  localStorage.removeItem('token');
+  document.getElementById('topHeader').style.display = 'none';
+  document.getElementById('bottomNav').style.display = 'none';
+  showScreen('screen-auth');
+}
+
+/* ============================= Поиск лекарств ============================= */
+async function onSearchSubmit(e) {
+  e.preventDefault();
+  const q = document.getElementById('searchInput').value.trim();
+  showScreen('screen-results');
+  const list = document.getElementById('resultsList');
+  clearChildren(list);
+  list.appendChild(makeEmptyMsg('Ищем...'));
+  try {
+    const meds = await api('/medicines?q=' + encodeURIComponent(q));
+    clearChildren(list);
+    if (meds.length === 0) { list.appendChild(makeEmptyMsg('Ничего не найдено')); return; }
+    meds.forEach(m => list.appendChild(makeMedicineCard(m)));
+  } catch (err) {
+    clearChildren(list);
+    list.appendChild(makeEmptyMsg(err.message));
+  }
+}
+
+function makeEmptyMsg(text) {
+  const d = document.createElement('div');
+  d.className = 'empty-msg';
+  d.textContent = text;
+  return d;
+}
+
+function makeMedicineCard(m) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.style.cursor = 'pointer';
+
+  const h3 = document.createElement('h3'); h3.textContent = m.name;
+  const meta = document.createElement('p'); meta.className = 'meta';
+  meta.textContent = m.active_ingredient + ' · ' + m.form + ' · ' + m.dosage;
+  const price = document.createElement('p'); price.className = 'price';
+  price.textContent = '≈ ' + Math.round(m.avg_price) + ' ₸';
+
+  card.appendChild(h3); card.appendChild(meta); card.appendChild(price);
+  card.addEventListener('click', () => openMedicineDetail(m.id));
+  return card;
+}
+
+/* ============================= Детали лекарства ============================= */
+async function openMedicineDetail(id) {
+  showScreen('screen-detail');
+  const nameEl = document.getElementById('detailName');
+  const metaEl = document.getElementById('detailMeta');
+  const priceEl = document.getElementById('detailPrice');
+  const analogsList = document.getElementById('analogsList');
+  setText(nameEl, 'Загрузка...'); setText(metaEl, ''); setText(priceEl, '');
+  clearChildren(analogsList);
+
+  try {
+    const med = await api('/medicine/' + id);
+    currentMedicine = med;
+    setText(nameEl, med.name);
+    setText(metaEl, med.active_ingredient + ' · ' + med.form + ' · ' + med.dosage + ' · ' + med.manufacturer);
+    setText(priceEl, '≈ ' + Math.round(med.avg_price) + ' ₸');
+
+    if (med.analogs.length === 0) {
+      analogsList.appendChild(makeEmptyMsg('Аналоги не найдены'));
+    } else {
+      med.analogs.forEach(a => {
+        const row = document.createElement('div');
+        row.className = 'analog-item';
+        row.textContent = a.name + ' (' + a.manufacturer + ') — ≈ ' + Math.round(a.avg_price) + ' ₸';
+        analogsList.appendChild(row);
+      });
+    }
+  } catch (err) {
+    setText(nameEl, 'Ошибка');
+    setText(metaEl, err.message);
+  }
+}
+
+async function onAddMedSubmit(e) {
+  e.preventDefault();
+  if (!currentMedicine) return;
+  const doses = parseInt(document.getElementById('dosesPerDay').value, 10);
+  const pills = parseInt(document.getElementById('pillsPerPack').value, 10);
+  try {
+    await api('/my-medicines', {
+      method: 'POST',
+      body: JSON.stringify({ medicine_id: currentMedicine.id, doses_per_day: doses, pills_per_pack: pills })
+    });
+    showToast('Добавлено в «Мои препараты»');
+  } catch (err) {
+    showToast(err.message);
+  }
+}
+
+/* ============================= Карта аптек ============================= */
+function onFindPharmacies() {
+  if (!currentMedicine) return;
+  showScreen('screen-map');
+  loadPharmacies(currentMedicine.id);
+}
+
+async function loadPharmacies(medicineId) {
+  const listEl = document.getElementById('pharmaciesList');
+  clearChildren(listEl);
+  listEl.appendChild(makeEmptyMsg('Загрузка...'));
+
+  // Пытаемся получить геопозицию, но продолжаем и без неё
+  function withLocation(cb) {
+    if (!navigator.geolocation) { cb(); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { currentUserLat = pos.coords.latitude; currentUserLng = pos.coords.longitude; cb(); },
+      () => cb(),
+      { timeout: 3000 }
+    );
+  }
+
+  withLocation(async () => {
+    try {
+      let url = '/pharmacies?medicine_id=' + medicineId;
+      if (currentUserLat !== null) url += '&lat=' + currentUserLat + '&lng=' + currentUserLng;
+      const pharmacies = await api(url);
+      clearChildren(listEl);
+      if (pharmacies.length === 0) { listEl.appendChild(makeEmptyMsg('Нет данных об аптеках')); return; }
+      renderMap(pharmacies);
+      pharmacies.forEach(p => listEl.appendChild(makePharmacyCard(p)));
+    } catch (err) {
+      clearChildren(listEl);
+      listEl.appendChild(makeEmptyMsg(err.message));
+    }
+  });
+}
+
+function makePharmacyCard(p) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  const h3 = document.createElement('h3'); h3.textContent = p.name;
+  const addr = document.createElement('p'); addr.className = 'meta'; addr.textContent = p.address;
+  const phone = document.createElement('p'); phone.className = 'meta'; phone.textContent = p.phone || '';
+  const dist = document.createElement('p'); dist.className = 'meta';
+  dist.textContent = (p.distance_km != null) ? p.distance_km + ' км от вас' : '';
+  const price = document.createElement('p'); price.className = 'price';
+  price.textContent = (p.price != null ? Math.round(p.price) + ' ₸' : '');
+  const badge = document.createElement('span');
+  badge.className = 'badge ' + (p.in_stock ? 'in-stock' : 'out-stock');
+  badge.textContent = p.in_stock ? 'В наличии' : 'Нет в наличии';
+
+  card.appendChild(h3); card.appendChild(addr);
+  if (p.phone) card.appendChild(phone);
+  if (p.distance_km != null) card.appendChild(dist);
+  card.appendChild(price); card.appendChild(badge);
+  return card;
+}
+
+function renderMap(pharmacies) {
+  const mapEl = document.getElementById('map');
+  if (leafletMap) { leafletMap.remove(); leafletMap = null; }
+
+  const center = [47.1085, 51.9140]; // центр Атырау — запасной вариант
+  leafletMap = L.map(mapEl).setView(center, 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(leafletMap);
+
+  const markers = [];
+  pharmacies.forEach(p => {
+    if (p.lat != null && p.lng != null) {
+      const marker = L.marker([p.lat, p.lng]).addTo(leafletMap).bindPopup(p.name);
+      markers.push(marker);
+    }
+  });
+  if (currentUserLat !== null) {
+    L.circleMarker([currentUserLat, currentUserLng], { radius: 7, color: '#0d6e4f' })
+      .addTo(leafletMap).bindPopup('Вы здесь');
+  }
+  if (markers.length > 0) {
+    const group = L.featureGroup(markers);
+    leafletMap.fitBounds(group.getBounds().pad(0.2));
+  }
+}
+
+/* ============================= Мои препараты ============================= */
+async function loadHomeMeds() {
+  const listEl = document.getElementById('homeMedsList');
+  clearChildren(listEl);
+  try {
+    const meds = await api('/my-medicines');
+    if (meds.length === 0) { listEl.appendChild(makeEmptyMsg('Пока нет добавленных препаратов')); return; }
+    meds.slice(0, 3).forEach(m => listEl.appendChild(makeMyMedCard(m, false)));
+  } catch (err) {
+    listEl.appendChild(makeEmptyMsg(err.message));
+  }
+}
+
+async function loadMyMedsFull() {
+  const listEl = document.getElementById('myMedsFull');
+  clearChildren(listEl);
+  try {
+    const meds = await api('/my-medicines');
+    if (meds.length === 0) { listEl.appendChild(makeEmptyMsg('Пока нет добавленных препаратов')); return; }
+    meds.forEach(m => listEl.appendChild(makeMyMedCard(m, true)));
+  } catch (err) {
+    listEl.appendChild(makeEmptyMsg(err.message));
+  }
+}
+
+function makeMyMedCard(m, withActions) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  const h3 = document.createElement('h3'); h3.textContent = m.name;
+  const meta = document.createElement('p'); meta.className = 'meta';
+  meta.textContent = m.dosage + ' · ' + m.doses_per_day + ' раз(а) в день';
+
+  const barWrap = document.createElement('div');
+  barWrap.className = 'progress-bar' + (m.need_refill ? ' low' : '');
+  const bar = document.createElement('div');
+  const totalDays = Math.max(1, Math.round(m.pills_per_pack / m.doses_per_day));
+  const pct = Math.max(0, Math.min(100, Math.round((m.days_left / totalDays) * 100)));
+  bar.style.width = pct + '%';
+  barWrap.appendChild(bar);
+
+  const daysText = document.createElement('p'); daysText.className = 'meta';
+  daysText.textContent = 'Осталось дней: ' + m.days_left;
+
+  card.appendChild(h3); card.appendChild(meta); card.appendChild(barWrap); card.appendChild(daysText);
+
+  if (m.need_refill) {
+    const warn = document.createElement('div');
+    warn.className = 'refill-warning';
+    warn.textContent = 'Пора купить новую упаковку';
+    card.appendChild(warn);
+  }
+
+  if (withActions) {
+    const row = document.createElement('div');
+    row.style.display = 'flex'; row.style.gap = '8px'; row.style.marginTop = '10px';
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'danger small'; delBtn.textContent = 'Удалить';
+    delBtn.addEventListener('click', async () => {
+      try {
+        await api('/my-medicines/' + m.id, { method: 'DELETE' });
+        loadMyMedsFull();
+      } catch (err) { showToast(err.message); }
+    });
+
+    const shortageBtn = document.createElement('button');
+    shortageBtn.className = 'secondary small'; shortageBtn.textContent = 'Отметить дефицит';
+    shortageBtn.addEventListener('click', async () => {
+      try {
+        await api('/shortage', {
+          method: 'POST',
+          body: JSON.stringify({ medicine_id: m.medicine_id, district: 'Центр' })
+        });
+        showToast('Спасибо, отчёт отправлен анонимно');
+      } catch (err) { showToast(err.message); }
+    });
+
+    row.appendChild(delBtn); row.appendChild(shortageBtn);
+    card.appendChild(row);
+  }
+
+  return card;
+}
+
+/* ============================= Статистика дефицита ============================= */
+async function loadStats() {
+  const listEl = document.getElementById('statsList');
+  clearChildren(listEl);
+  try {
+    const stats = await api('/shortage-stats');
+    if (stats.length === 0) { listEl.appendChild(makeEmptyMsg('Пока нет данных о дефиците')); return; }
+    stats.forEach((s, idx) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const h3 = document.createElement('h3'); h3.textContent = (idx + 1) + '. ' + s.name;
+      const meta = document.createElement('p'); meta.className = 'meta';
+      meta.textContent = 'Обращений за 30 дней: ' + s.reports;
+      card.appendChild(h3); card.appendChild(meta);
+      listEl.appendChild(card);
+    });
+  } catch (err) {
+    listEl.appendChild(makeEmptyMsg(err.message));
+  }
+}
+</script>
+</body>
+</html>

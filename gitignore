@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+pharmacy.db
+.venv/
+venv/
+.DS_Store
