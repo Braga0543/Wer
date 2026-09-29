@@ -10,11 +10,24 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+import db_setup
 from auth import (create_session, delete_session, get_current_user, get_db,
                    hash_password, new_salt, now_iso, token_from_request,
                    verify_password)
 
 app = FastAPI(title="Аптека рядом")
+
+
+# На обычном сервере вы один раз запускаете `python db_setup.py` вручную.
+# На Vercel (serverless) файловая система пересоздаётся при каждом
+# "холодном старте" функции, поэтому база в /tmp может быть пустой —
+# создаём и заполняем её здесь автоматически при старте приложения.
+# db_setup.setup() идемпотентен (IF NOT EXISTS / проверка на пустоту),
+# так что повторный вызов на "тёплом" старте ничего не портит.
+@app.on_event("startup")
+def ensure_database_ready():
+    db_setup.setup()
+
 
 # Глобальный обработчик непредвиденных ошибок: без него FastAPI/Starlette
 # по умолчанию отвечает на 500-е ошибки простым текстом "Internal Server

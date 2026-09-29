@@ -7,7 +7,7 @@ import random
 import sqlite3
 from datetime import datetime, timedelta, timezone
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pharmacy.db")
+from auth import DB_PATH
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
@@ -126,7 +126,7 @@ def now_iso():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
 
 
-def main():
+def setup():
     random.seed(42)  # воспроизводимые тестовые данные
     conn = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA foreign_keys = ON")
@@ -175,7 +175,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    setup()
 
 # ─────────────────────────────────────────────────────────────
 # ПОЛНЫЙ СБРОС БД (раскомментируйте, запустите один раз, закомментируйте обратно)

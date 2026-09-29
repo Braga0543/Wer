@@ -9,7 +9,14 @@ from typing import Optional
 
 from fastapi import HTTPException, Request
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pharmacy.db")
+# На обычном сервере/локально храним pharmacy.db рядом с кодом.
+# На Vercel (serverless) диск доступен на запись только в /tmp,
+# и он не сохраняется между "холодными стартами" функции —
+# поэтому там база создаётся заново при каждом старте (см. main.py).
+if os.environ.get("VERCEL"):
+    DB_PATH = "/tmp/pharmacy.db"
+else:
+    DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pharmacy.db")
 ITERATIONS = 100_000
 SESSION_DAYS = 30
 
