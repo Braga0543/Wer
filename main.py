@@ -16,6 +16,17 @@ from auth import (create_session, delete_session, get_current_user, get_db,
 
 app = FastAPI(title="Аптека рядом")
 
+# Глобальный обработчик непредвиденных ошибок: без него FastAPI/Starlette
+# по умолчанию отвечает на 500-е ошибки простым текстом "Internal Server
+# Error" (не JSON), а фронтенд не может его разобрать и показывает общее
+# "Произошла ошибка". С этим обработчиком в ответе всегда будет JSON
+# с описанием ошибки — легче понять, что пошло не так.
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    from fastapi.responses import JSONResponse
+    print(f"[ОШИБКА] {request.method} {request.url.path}: {exc!r}")
+    return JSONResponse(status_code=500, content={"detail": f"Ошибка сервера: {exc}"})
+
 # CORS: разрешаем всё, включая заголовок Authorization
 app.add_middleware(
     CORSMiddleware,
